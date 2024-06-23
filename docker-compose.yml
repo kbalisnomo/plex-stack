@@ -36,6 +36,7 @@ services:
       - ${BASE_PATH}/plex/config:/config
       - ${UNRAID_SHARE}/media/tv:/tv
       - ${UNRAID_SHARE}/media/movies:/movies
+      - ${UNRAID_SHARE}/media/anime:/anime
     restart: unless-stopped
     
   #Radarr - used to find movies automatically
