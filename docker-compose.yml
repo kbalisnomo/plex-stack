@@ -100,6 +100,7 @@ services:
   # vpn + wireguard   
   vpn:
     image: thrnz/docker-wireguard-pia
+    container_name: vpn
     cap_add:
       - NET_ADMIN
       # SYS_MODULE might not be needed with a 5.6+ kernel?
@@ -144,6 +145,7 @@ services:
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     network_mode: "service:vpn"
+    container_name: qbitorrent
     environment:
       - PUID=${USER_ID}
       - PGID=${GROUP_ID}
