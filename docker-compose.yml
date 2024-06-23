@@ -170,20 +170,20 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       
-  #Overseer - allows users to request media on their own
-  overseerr:
-    image: lscr.io/linuxserver/overseerr:latest
-    container_name: overseerr
-    environment:
-      - PUID=${USER_ID}
-      - PGID=${GROUP_ID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/overseer/config:/config
-      - ${UNRAID_SHARE}:/share #Access to the entire share
-    ports:
-      - 5055:5055
-    restart: unless-stopped
+  # #Overseer - allows users to request media on their own
+  # overseerr:
+  #   image: lscr.io/linuxserver/overseerr:latest
+  #   container_name: overseerr
+  #   environment:
+  #     - PUID=${USER_ID}
+  #     - PGID=${GROUP_ID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ${BASE_PATH}/overseer/config:/config
+  #     - ${UNRAID_SHARE}:/share #Access to the entire share
+  #   ports:
+  #     - 5055:5055
+  #   restart: unless-stopped
 
   # #Bazarr - for subtitles. Try to use SRT format if you can rather than PGS due to performance issues
   # bazarr:
