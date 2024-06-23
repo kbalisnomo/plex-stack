@@ -95,58 +95,62 @@ services:
     ports:
       - 8191:8191
     restart: unless-stopped
-    
-  #Gluetun - vpn container
-  gluetun: #Setup for this container will be different depending on your VPN of choice
-    image: qmcgaw/gluetun
-    container_name: gluetun
-    # line above must be uncommented to allow external containers to connect.
-    # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/connect-a-container-to-gluetun.md#external-container-to-gluetun
+
+  # vpn + wireguard   
+  vpn:
+    image: thrnz/docker-wireguard-pia
     cap_add:
       - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
+      # SYS_MODULE might not be needed with a 5.6+ kernel?
+      - SYS_MODULE
     ports:
-      - 8888:8888/tcp # HTTP proxy
-      - 8388:8388/tcp # Shadowsocks
-      - 8388:8388/udp # Shadowsocks
-      - 8080:8080 #Qbittorent Web UI
-      - 8081:8081 #Qbittorent Web UI
-      - 8694:8694
-      - 8694:8694/udp
-    volumes:
-      - ${BASE_PATH}/gluetun:/gluetun
+      - 8080:8080
     environment:
-      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER} # Example airvpn
-      - VPN_TYPE=wireguard #Wireguard is generally faster than OpenVPN
-      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY} #Example IE4cdRxZzoy/HvlLXVLB.2Hy@d=
-      - WIREGUARD_PRESHARED_KEY=${WIREGUARD_PRESHARED_KEY} #Example IE4cdRxZzoy/HvlLXVLB.2Hy@d=
-      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES} #Example 101.14.14.28/32
-      - SERVER_HOSTNAMES=${SERVER_HOSTNAMES} #Example vpn.airdns.org
-      - SERVER_NAMES=${VPN_SERVER_NAMES} #Example Dallim
-      - SERVER_CITIES=${VPN_SERVER_CITIES} #Example Albasserdonia
-      - FIREWALL_VPN_INPUT_PORTS=${FIREWALL_VPN_INPUT_PORTS} #Example 8926 - Used for port forwarding
-      
-  #Qbittorent - torrenting software
+      # The following env vars are required:
+      - LOC=${VPN_LOC}
+      - USER=${VPN_USER}
+      - PASS=${VPN_PASS}
+      # The rest are optional:
+      - LOCAL_NETWORK=192.168.1.0/24
+      - KEEPALIVE=25
+      - VPNDNS=8.8.8.8,8.8.4.4
+      - PORT_FORWARDING=1
+      - WG_USERSPACE=1
+      - PORT_PERSIST=1
+      - PORT_SCRIPT=/pia-shared/ports.sh 
+      - FIREWALL=1
+      - PORT_FILE_CLEANUP=1
+    volumes:
+      # Auth token is stored here
+      - /myserver/configs/pia-wg/pia:/pia
+      # If enabled, the forwarded port is dumped to /pia-shared/port.dat for potential use in other containers
+      - /myserver/configs/pia-wg/scripts:/pia-shared
+    sysctls:
+      # wg-quick fails to set this without --privileged, so set it here instead if needed
+      - net.ipv4.conf.all.src_valid_mark=1
+      # May as well disable ipv6. Should be blocked anyway.
+      - net.ipv6.conf.default.disable_ipv6=1
+      - net.ipv6.conf.all.disable_ipv6=1
+      - net.ipv6.conf.lo.disable_ipv6=1
+    restart: always
+    # The container has no recovery logic. Use a healthcheck to catch disconnects.
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
-    network_mode: "service:gluetun"
-    container_name: qbittorrent
-    labels:
-      - deunhealth.restart.on.unhealthy=true
+    network_mode: "service:vpn"
     environment:
       - PUID=${USER_ID}
       - PGID=${GROUP_ID}
       - TZ=${TZ}
       - WEBUI_PORT=8080
-      - TORRENTING_PORT=8694
-    healthcheck: # https://github.com/qdm12/gluetun/issues/641#issuecomment-933856220
-      test: "curl -sf https://1.1.1.1/  || exit 1"
-      interval: 1m
-      timeout: 10s
-      retries: 1
     volumes:
-      - ${BASE_PATH}/qbittorent/config:/config
+      - ${BASE_PATH}/pia-wg/qbt:/config
+      - ${BASE_PATH}/pia-wg/scripts:/config/scripts
       - ${UNRAID_SHARE}:/share
     restart: unless-stopped
     
@@ -155,7 +159,6 @@ services:
     build: .
     image: qmcgaw/deunhealth
     container_name: deunhealth
-
     environment:
       - LOG_LEVEL=info
       - HEALTH_SERVER_ADDRESS=127.0.0.1:9999
@@ -175,8 +178,6 @@ services:
     volumes:
       - ${BASE_PATH}/overseer/config:/config
       - ${UNRAID_SHARE}:/share #Access to the entire share
-    #networks:
-    #  - proxy
     ports:
       - 5055:5055
     restart: unless-stopped
