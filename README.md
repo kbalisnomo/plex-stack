@@ -74,3 +74,7 @@ Anytime you reference your media folder in a container you want the path to look
 2. Portainer - Docker GUI
 3. UptimeKuma - Gives you the ability to monitor your services
 
+# Using with mergerfs
+
+Needed this param in order for qbittorrent to be able to download:
+`cache.files=partial,dropcacheonclose=true,category.create=mfs`
